@@ -1,0 +1,24 @@
+{% if completed_games %}
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Model</th>
+        <th>Result</th>
+        <th>Moves</th>
+        <th>Completed</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for game in completed_games %}
+        <tr>
+          <td>{{ game.model.name if game.model else ('Model #' ~ game.model_id) }}</td>
+          <td class="{{ game.result.value if game.result else '' }}">{{ game.result.value|capitalize if game.result else 'Pending' }}</td>
+          <td>{{ game.moves_count }}</td>
+          <td>{{ game.completed_at.strftime('%Y-%m-%d %H:%M') if game.completed_at else '—' }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  <p>No completed games yet.</p>
+{% endif %}

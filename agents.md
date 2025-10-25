@@ -1,0 +1,3 @@
+# Chessbench Agent Brief
+
+Chessbench runs daily LLM-vs-Stockfish matches, storing games and moves in SQLite while exposing a FastAPI + HTMX dashboard and JSON APIs for monitoring results and ratings. Core packages live in `app/`: configuration and database helpers (`config.py`, `database.py`), SQLModel tables (`models/`), orchestration services for Stockfish, OpenRouter, ratings, and scheduling (`internal/`, `services/`), HTTP routers (`routers/`), plus Jinja templates and static assets for the dashboard. Background orchestration is launched in `app/main.py` via the FastAPI lifespan, and CLI entrypoints in `main.py` allow batch game execution or serving the web UI. Tests under `tests/` cover orchestrator flows and API rendering using the async SQLite setup.

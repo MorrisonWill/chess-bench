@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard | Chessbench{% endblock %}
+
+{% block content %}
+  <section class="grid">
+    <article class="card" hx-get="/partials/active-boards" hx-trigger="load{% if refresh_seconds %}, every {{ refresh_seconds }}s{% endif %}" hx-target="#active-boards-content" hx-swap="innerHTML">
+      <header class="card-header">
+        <h2>Active Boards</h2>
+      </header>
+      <div id="active-boards-content">
+        {% include "partials/active_boards.html" %}
+      </div>
+    </article>
+
+    <article class="card" hx-get="/partials/completed-games" hx-trigger="load{% if refresh_seconds %}, every {{ refresh_seconds }}s{% endif %}" hx-target="#completed-games-content" hx-swap="innerHTML">
+      <header class="card-header">
+        <h2>Recent Games</h2>
+      </header>
+      <div id="completed-games-content">
+        {% include "partials/completed_games.html" %}
+      </div>
+    </article>
+  </section>
+
+  <section class="card" hx-get="/partials/rating-table" hx-trigger="load{% if refresh_seconds %}, every {{ refresh_seconds }}s{% endif %}" hx-target="#rating-table-content" hx-swap="innerHTML">
+    <header class="card-header">
+      <h2>Model Ratings</h2>
+    </header>
+    <div id="rating-table-content">
+      {% include "partials/rating_table.html" %}
+    </div>
+  </section>
+{% endblock %}

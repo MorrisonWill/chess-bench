@@ -1,0 +1,25 @@
+[project]
+name = "chessbench"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "chess>=1.11.2",
+    "fastapi>=0.116.1",
+    "aiosqlite>=0.20.0",
+    "httpx>=0.28.1",
+    "jinja2>=3.1.6",
+    "pydantic-settings>=2.10.1",
+    "sqlalchemy>=2.0.44",
+    "sqlmodel>=0.0.24",
+    "uvicorn>=0.35.0",
+    "greenlet>=3.2.4",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.3",
+    "ruff>=0.14.2",
+    "ty>=0.0.1a24",
+]

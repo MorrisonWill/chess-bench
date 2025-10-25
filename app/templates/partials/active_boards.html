@@ -1,0 +1,18 @@
+{% if active_games %}
+  <ul class="list">
+    {% for game in active_games %}
+      <li>
+        <div class="list-primary">
+          <span class="badge live">Live</span>
+          <strong>{{ game.model.name if game.model else ('Model #' ~ game.model_id) }}</strong>
+          <span>vs {{ game.opponent.value|capitalize }}</span>
+        </div>
+        <div class="list-secondary">
+          Started {{ game.started_at.strftime('%Y-%m-%d %H:%M') }}
+        </div>
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p>No active games at the moment.</p>
+{% endif %}

@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{% block title %}Chessbench{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='styles.css') }}" />
+    <script src="{{ url_for('static', path='htmx.min.js') }}" defer></script>
+  </head>
+  <body>
+    <header class="navbar">
+      <h1>Chessbench</h1>
+    </header>
+    <main class="container">
+      {% block content %}{% endblock %}
+    </main>
+  </body>
+</html>

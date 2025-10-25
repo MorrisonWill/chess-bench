@@ -1,0 +1,42 @@
+{% if models %}
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Model</th>
+        <th>Rating</th>
+        <th>Status</th>
+        <th>Last Active</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for model in models %}
+        <tr>
+          <td>{{ model.name }}</td>
+          <td>{{ '%.0f'|format(model.rating) }}</td>
+          <td>
+            {% if model.is_active %}
+              <span class="badge active">Active</span>
+            {% else %}
+              <span class="badge inactive">Paused</span>
+            {% endif %}
+          </td>
+          <td>{{ model.last_active_at.strftime('%Y-%m-%d %H:%M') if model.last_active_at else '—' }}</td>
+          <td>
+            <button
+              class="btn"
+              hx-post="/api/models/{{ model.id }}/schedule"
+              hx-swap="none"
+              hx-trigger="click"
+            >
+              Queue Match
+            </button>
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p class="timestamp">Updated at {{ generated_at.strftime('%H:%M:%S') if generated_at else '' }}</p>
+{% else %}
+  <p>No models configured.</p>
+{% endif %}
