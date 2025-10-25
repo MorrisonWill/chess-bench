@@ -4,19 +4,31 @@ import asyncio
 import logging
 from contextlib import suppress
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Sequence
 
 import chess
 import chess.pgn
+import chess.polyglot
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlmodel import col
 
-from app.internal.openrouter import OpenRouterClient, OpenRouterModelConfig, OpenRouterMoveError
-from app.internal.ratings import adjust_rating
+from app.internal.openrouter import (
+    OpenRouterClient,
+    OpenRouterModelConfig,
+    OpenRouterMoveError,
+)
+from app.internal.ratings import STOCKFISH_RATING, adjust_rating
 from app.internal.stockfish import StockfishEngine
-from app.models import Game, GameResult, MatchSchedule, MatchStatus, Model, Move, MoveSide
+from app.models import (
+    Game,
+    GameResult,
+    MatchSchedule,
+    MatchStatus,
+    Model,
+    Move,
+    MoveSide,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -29,7 +41,6 @@ class GameOrchestrator:
         stockfish: StockfishEngine | None,
         openrouter: OpenRouterClient | None,
         scheduler_interval: float,
-        pgn_directory: Path,
         dry_run: bool = False,
         scripted_moves: Sequence[str] | None = None,
     ) -> None:
@@ -37,11 +48,9 @@ class GameOrchestrator:
         self._stockfish = stockfish
         self._openrouter = openrouter
         self._scheduler_interval = scheduler_interval
-        self._pgn_directory = pgn_directory
         self._dry_run = dry_run
         self._scripted_moves = list(scripted_moves or [])
         self._task: asyncio.Task[None] | None = None
-        self._pgn_directory.mkdir(parents=True, exist_ok=True)
 
     async def start(self) -> None:
         if self._task and not self._task.done():
@@ -72,10 +81,14 @@ class GameOrchestrator:
         except asyncio.CancelledError:
             raise
 
-    async def _process_pending_matches(self, model_ids: Sequence[int | str] | None) -> None:
+    async def _process_pending_matches(
+        self, model_ids: Sequence[int | str] | None
+    ) -> None:
         ids = self._normalize_ids(model_ids)
         async with self._session_factory() as session:
-            query = select(MatchSchedule).where(col(MatchSchedule.status) == MatchStatus.PENDING)
+            query = select(MatchSchedule).where(
+                col(MatchSchedule.status) == MatchStatus.PENDING
+            )
             if ids:
                 query = query.where(col(MatchSchedule.model_id).in_(ids))
             query = query.order_by(col(MatchSchedule.scheduled_for))
@@ -106,10 +119,13 @@ class GameOrchestrator:
             if game_id is None or model_id is None:
                 schedule.status = MatchStatus.FAILED
                 await session.commit()
-                logger.error("Persisted game or model lacks primary key for schedule %s", schedule.id)
+                logger.error(
+                    "Persisted game or model lacks primary key for schedule %s",
+                    schedule.id,
+                )
                 return
             try:
-                result = await self._play_game(game_id, model_id)
+                await self._play_game(game_id, model_id)
             except Exception as exc:
                 schedule.status = MatchStatus.FAILED
                 await session.commit()
@@ -131,17 +147,24 @@ class GameOrchestrator:
             pgn_game.headers.update(
                 {
                     "Event": "Chessbench Daily Match",
-                    "Date": timestamp.strftime("%Y.%m.%d"),
+                    "UTCDate": timestamp.strftime("%Y.%m.%d"),
+                    "UTCTime": timestamp.strftime("%H:%M:%S"),
                     "White": model.name,
                     "Black": "Stockfish",
                 }
             )
+            if model.rating is not None:
+                pgn_game.headers["WhiteElo"] = f"{int(round(model.rating))}"
+            pgn_game.headers["BlackElo"] = f"{int(round(STOCKFISH_RATING))}"
             node = pgn_game
             moves_played = 0
             max_half_moves = 400
             forfeit_result: GameResult | None = None
 
-            while not board.is_game_over(claim_draw=True) and moves_played < max_half_moves:
+            while (
+                not board.is_game_over(claim_draw=True)
+                and moves_played < max_half_moves
+            ):
                 model_turn = board.turn == chess.WHITE
                 try:
                     move, san = await self._choose_move(
@@ -161,7 +184,14 @@ class GameOrchestrator:
                 node = node.add_variation(move)
                 san_history.append(san)
                 side = MoveSide.WHITE if model_turn else MoveSide.BLACK
-                session.add(Move(game=game, ply=moves_played + 1, side=side, san=san))
+                move_record = Move(
+                    game=game,
+                    ply=moves_played + 1,
+                    side=side,
+                    san=san,
+                )
+                session.add(move_record)
+                await session.flush()
                 board.push(move)
                 moves_played += 1
 
@@ -173,10 +203,9 @@ class GameOrchestrator:
             game.completed_at = datetime.now(timezone.utc)
             game.moves_count = moves_played
             game.result = result
-            game.opening = " ".join(san_history[:6]) or None
             pgn_game.headers["Result"] = self._pgn_result_string(result)
-            pgn_path = self._write_pgn(pgn_game, game.id)
-            game.pgn_path = str(pgn_path)
+            game.pgn = self._render_pgn(pgn_game)
+            game.pgn_path = None
             model.last_active_at = datetime.now(timezone.utc)
             if not self._dry_run:
                 model.rating = adjust_rating(model.rating, result)
@@ -206,7 +235,9 @@ class GameOrchestrator:
             try:
                 move = board.parse_san(san)
             except ValueError as exc:
-                raise OpenRouterMoveError(f"Invalid SAN provided by model: {san}") from exc
+                raise OpenRouterMoveError(
+                    f"Invalid SAN provided by model: {san}"
+                ) from exc
             return move, san
         if not model_turn and not self._dry_run and self._stockfish is not None:
             move = await self._stockfish.choose_move(board)
@@ -230,10 +261,10 @@ class GameOrchestrator:
     def _fallback_move(board: chess.Board) -> chess.Move:
         return next(iter(board.legal_moves))
 
-    def _write_pgn(self, game: chess.pgn.Game, game_id: int) -> Path:
-        path = self._pgn_directory / f"game_{game_id}.pgn"
-        path.write_text(str(game), encoding="utf-8")
-        return path
+    @staticmethod
+    def _render_pgn(game: chess.pgn.Game) -> str:
+        text = str(game).strip()
+        return f"{text}\n" if text else ""
 
     async def _ensure_dependencies_ready(self) -> None:
         if self._stockfish:

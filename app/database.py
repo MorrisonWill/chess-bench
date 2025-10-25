@@ -3,6 +3,7 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
+from sqlalchemy import inspect, text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -26,7 +27,9 @@ def get_engine(settings: Settings | None = None) -> AsyncEngine:
     return _engine
 
 
-def get_session_factory(settings: Settings | None = None) -> async_sessionmaker[AsyncSession]:
+def get_session_factory(
+    settings: Settings | None = None,
+) -> async_sessionmaker[AsyncSession]:
     global _session_factory
     if _session_factory is None:
         engine = get_engine(settings)

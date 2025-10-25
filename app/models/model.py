@@ -1,15 +1,13 @@
-from datetime import datetime, timezone
-from typing import List, Optional, TYPE_CHECKING
+from datetime import datetime
+from typing import TYPE_CHECKING, Optional
 
 from sqlmodel import Field, Relationship, SQLModel
+
+from ._utils import utcnow
 
 if TYPE_CHECKING:
     from .game import Game
     from .schedule import MatchSchedule
-
-
-def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
 
 
 class Model(SQLModel, table=True):
@@ -19,7 +17,7 @@ class Model(SQLModel, table=True):
     rating: float = Field(default=1200.0)
     last_active_at: Optional[datetime] = None
     is_active: bool = Field(default=True, index=True)
-    created_at: datetime = Field(default_factory=_utcnow, nullable=False)
+    created_at: datetime = Field(default_factory=utcnow, nullable=False)
 
-    games: List["Game"] = Relationship(back_populates="model")
-    schedules: List["MatchSchedule"] = Relationship(back_populates="model")
+    games: list["Game"] = Relationship(back_populates="model")
+    schedules: list["MatchSchedule"] = Relationship(back_populates="model")

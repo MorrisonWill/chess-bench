@@ -31,7 +31,6 @@ async def lifespan(app: FastAPI):
         stockfish=stockfish,
         openrouter=openrouter,
         scheduler_interval=settings.scheduler_interval_seconds,
-        pgn_directory=BASE_DIR.parent / "pgn",
         dry_run=settings.test_mode,
     )
     app.state.settings = settings

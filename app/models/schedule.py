@@ -1,8 +1,10 @@
-from datetime import datetime, timezone
+from datetime import datetime
 from enum import Enum
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from sqlmodel import Field, Relationship, SQLModel
+
+from ._utils import utcnow
 
 if TYPE_CHECKING:
     from .game import Game
@@ -16,14 +18,10 @@ class MatchStatus(str, Enum):
     FAILED = "failed"
 
 
-def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
-
-
 class MatchSchedule(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     model_id: int = Field(foreign_key="model.id", index=True)
-    scheduled_for: datetime = Field(default_factory=_utcnow, index=True)
+    scheduled_for: datetime = Field(default_factory=utcnow, index=True)
     status: MatchStatus = Field(default=MatchStatus.PENDING, index=True)
     game_id: Optional[int] = Field(default=None, foreign_key="game.id", index=True)
 

@@ -10,7 +10,7 @@ from sqlmodel import col
 
 from app.dependencies import orchestrator_dependency, session_dependency
 from app.internal.orchestrator import GameOrchestrator
-from app.models import MatchSchedule, MatchStatus, Model
+from app.models import MatchSchedule, Model
 
 
 router = APIRouter(tags=["models"])
@@ -31,14 +31,18 @@ class ModelUpdate(BaseModel):
 
 
 @router.get("/models")
-async def list_models(session: AsyncSession = Depends(session_dependency)) -> list[dict[str, object]]:
+async def list_models(
+    session: AsyncSession = Depends(session_dependency),
+) -> list[dict[str, object]]:
     result = await session.execute(select(Model).order_by(col(Model.name)))
     models = result.scalars().unique().all()
     return [_serialize_model(model) for model in models]
 
 
 @router.post("/models", status_code=201)
-async def create_model(payload: ModelCreate, session: AsyncSession = Depends(session_dependency)) -> dict[str, object]:
+async def create_model(
+    payload: ModelCreate, session: AsyncSession = Depends(session_dependency)
+) -> dict[str, object]:
     model = Model(
         name=payload.name,
         openrouter_model=payload.openrouter_model,
