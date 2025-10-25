@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import col
 
 from app.dependencies import orchestrator_dependency, session_dependency
 from app.internal.orchestrator import GameOrchestrator
@@ -17,7 +18,7 @@ router = APIRouter(tags=["games"])
 
 @router.get("/games")
 async def list_games(session: AsyncSession = Depends(session_dependency)) -> list[dict[str, object]]:
-    query = select(Game).order_by(Game.started_at.desc()).limit(50)
+    query = select(Game).order_by(col(Game.started_at).desc()).limit(50)
     result = await session.execute(query)
     games = result.scalars().unique().all()
     return [_serialize_game(game) for game in games]

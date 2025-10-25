@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
@@ -8,6 +8,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from sqlmodel import col
 
 from app.dependencies import session_dependency, templates_dependency
 from app.models import Game, Model
@@ -63,7 +64,7 @@ async def rating_table_partial(
         {
             "request": request,
             "models": await _rating_table(session),
-            "generated_at": datetime.utcnow(),
+            "generated_at": datetime.now(timezone.utc),
         },
     )
 
@@ -80,8 +81,8 @@ async def _active_games(session: AsyncSession) -> list[Game]:
     query = (
         select(Game)
         .options(selectinload(Game.model))
-        .where(Game.completed_at.is_(None))
-        .order_by(Game.started_at.desc())
+        .where(col(Game.completed_at).is_(None))
+        .order_by(col(Game.started_at).desc())
     )
     result = await session.execute(query)
     return list(result.scalars().unique())
@@ -91,8 +92,8 @@ async def _completed_games(session: AsyncSession) -> list[Game]:
     query = (
         select(Game)
         .options(selectinload(Game.model))
-        .where(Game.completed_at.is_not(None))
-        .order_by(Game.completed_at.desc())
+        .where(col(Game.completed_at).is_not(None))
+        .order_by(col(Game.completed_at).desc())
         .limit(10)
     )
     result = await session.execute(query)
@@ -100,6 +101,6 @@ async def _completed_games(session: AsyncSession) -> list[Game]:
 
 
 async def _rating_table(session: AsyncSession) -> list[Model]:
-    query = select(Model).order_by(Model.rating.desc())
+    query = select(Model).order_by(col(Model.rating).desc())
     result = await session.execute(query)
     return list(result.scalars().unique())

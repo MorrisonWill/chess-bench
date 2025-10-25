@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import col
 
 from app.dependencies import orchestrator_dependency, session_dependency
 from app.internal.orchestrator import GameOrchestrator
@@ -31,7 +32,7 @@ class ModelUpdate(BaseModel):
 
 @router.get("/models")
 async def list_models(session: AsyncSession = Depends(session_dependency)) -> list[dict[str, object]]:
-    result = await session.execute(select(Model).order_by(Model.name))
+    result = await session.execute(select(Model).order_by(col(Model.name)))
     models = result.scalars().unique().all()
     return [_serialize_model(model) for model in models]
 
@@ -86,7 +87,7 @@ async def schedule_match(
     model = await session.get(Model, model_id)
     if model is None:
         raise HTTPException(status_code=404, detail="Model not found")
-    schedule = MatchSchedule(model=model, scheduled_for=datetime.utcnow())
+    schedule = MatchSchedule(model=model, scheduled_for=datetime.now(timezone.utc))
     session.add(schedule)
     await session.flush()
     await session.commit()

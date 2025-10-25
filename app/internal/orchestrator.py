@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from contextlib import suppress
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Sequence
 
@@ -11,6 +11,7 @@ import chess
 import chess.pgn
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from sqlmodel import col
 
 from app.internal.openrouter import OpenRouterClient, OpenRouterModelConfig, OpenRouterMoveError
 from app.internal.ratings import adjust_rating
@@ -74,10 +75,11 @@ class GameOrchestrator:
     async def _process_pending_matches(self, model_ids: Sequence[int | str] | None) -> None:
         ids = self._normalize_ids(model_ids)
         async with self._session_factory() as session:
-            query = select(MatchSchedule).where(MatchSchedule.status == MatchStatus.PENDING)
+            query = select(MatchSchedule).where(col(MatchSchedule.status) == MatchStatus.PENDING)
             if ids:
-                query = query.where(MatchSchedule.model_id.in_(ids))
-            schedules = (await session.execute(query.order_by(MatchSchedule.scheduled_for))).scalars().all()
+                query = query.where(col(MatchSchedule.model_id).in_(ids))
+            query = query.order_by(col(MatchSchedule.scheduled_for))
+            schedules = (await session.execute(query)).scalars().all()
         for schedule in schedules:
             await self._run_schedule(schedule.id)
 
@@ -99,8 +101,15 @@ class GameOrchestrator:
             await session.flush()
             schedule.game = game
             await session.commit()
+            game_id = game.id
+            model_id = model.id
+            if game_id is None or model_id is None:
+                schedule.status = MatchStatus.FAILED
+                await session.commit()
+                logger.error("Persisted game or model lacks primary key for schedule %s", schedule.id)
+                return
             try:
-                result = await self._play_game(game.id, model.id)
+                result = await self._play_game(game_id, model_id)
             except Exception as exc:
                 schedule.status = MatchStatus.FAILED
                 await session.commit()
@@ -118,7 +127,7 @@ class GameOrchestrator:
             board = chess.Board()
             san_history: list[str] = []
             pgn_game = chess.pgn.Game()
-            timestamp = datetime.utcnow()
+            timestamp = datetime.now(timezone.utc)
             pgn_game.headers.update(
                 {
                     "Event": "Chessbench Daily Match",
@@ -130,10 +139,25 @@ class GameOrchestrator:
             node = pgn_game
             moves_played = 0
             max_half_moves = 400
+            forfeit_result: GameResult | None = None
 
             while not board.is_game_over(claim_draw=True) and moves_played < max_half_moves:
                 model_turn = board.turn == chess.WHITE
-                move, san = await self._choose_move(board, san_history, model_turn=model_turn, model=model)
+                try:
+                    move, san = await self._choose_move(
+                        board,
+                        san_history,
+                        model_turn=model_turn,
+                        model=model,
+                    )
+                except OpenRouterMoveError as exc:
+                    logger.warning(
+                        "Game %s forfeited due to illegal move: %s",
+                        game.id if game else "unknown",
+                        exc,
+                    )
+                    forfeit_result = GameResult.LOSS if model_turn else GameResult.WIN
+                    break
                 node = node.add_variation(move)
                 san_history.append(san)
                 side = MoveSide.WHITE if model_turn else MoveSide.BLACK
@@ -141,16 +165,19 @@ class GameOrchestrator:
                 board.push(move)
                 moves_played += 1
 
-            board_result = board.result(claim_draw=True)
-            result = self._map_result(board_result)
-            game.completed_at = datetime.utcnow()
+            if forfeit_result is not None:
+                result = forfeit_result
+            else:
+                board_result = board.result(claim_draw=True)
+                result = self._map_result(board_result)
+            game.completed_at = datetime.now(timezone.utc)
             game.moves_count = moves_played
             game.result = result
             game.opening = " ".join(san_history[:6]) or None
             pgn_game.headers["Result"] = self._pgn_result_string(result)
             pgn_path = self._write_pgn(pgn_game, game.id)
             game.pgn_path = str(pgn_path)
-            model.last_active_at = datetime.utcnow()
+            model.last_active_at = datetime.now(timezone.utc)
             if not self._dry_run:
                 model.rating = adjust_rating(model.rating, result)
             await session.commit()
@@ -169,7 +196,13 @@ class GameOrchestrator:
             return scripted, board.san(scripted)
         if model_turn and not self._dry_run and self._openrouter is not None:
             config = OpenRouterModelConfig(name=model.openrouter_model)
-            san = await self._openrouter.get_move(board.fen(), san_history, config)
+            legal_moves_san = [board.san(move) for move in board.legal_moves]
+            san = await self._openrouter.get_move(
+                board.fen(),
+                san_history,
+                legal_moves_san,
+                config,
+            )
             try:
                 move = board.parse_san(san)
             except ValueError as exc:

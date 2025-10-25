@@ -5,6 +5,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from sqlmodel import col
 
 from app.dependencies import orchestrator_dependency, session_dependency, templates_dependency
 from app.internal.orchestrator import GameOrchestrator
@@ -79,7 +80,7 @@ async def schedule_model(
 
 
 async def _load_models(session: AsyncSession) -> list[Model]:
-    result = await session.execute(select(Model).order_by(Model.name))
+    result = await session.execute(select(Model).order_by(col(Model.name)))
     return list(result.scalars().unique())
 
 
@@ -87,8 +88,8 @@ async def _load_schedules(session: AsyncSession) -> list[MatchSchedule]:
     query = (
         select(MatchSchedule)
         .options(selectinload(MatchSchedule.model))
-        .where(MatchSchedule.status.in_([MatchStatus.PENDING, MatchStatus.RUNNING]))
-        .order_by(MatchSchedule.scheduled_for.asc())
+        .where(col(MatchSchedule.status).in_([MatchStatus.PENDING, MatchStatus.RUNNING]))
+        .order_by(col(MatchSchedule.scheduled_for).asc())
     )
     result = await session.execute(query)
     return list(result.scalars().unique())
