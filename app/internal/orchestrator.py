@@ -94,10 +94,10 @@ class GameOrchestrator:
                 await session.commit()
                 return
             schedule.status = MatchStatus.RUNNING
-            game = Game(model_id=model.id)
+            game = Game(model=model)
             session.add(game)
             await session.flush()
-            schedule.game_id = game.id
+            schedule.game = game
             await session.commit()
             try:
                 result = await self._play_game(game.id, model.id)
@@ -137,7 +137,7 @@ class GameOrchestrator:
                 node = node.add_variation(move)
                 san_history.append(san)
                 side = MoveSide.WHITE if model_turn else MoveSide.BLACK
-                session.add(Move(game_id=game.id, ply=moves_played + 1, side=side, san=san))
+                session.add(Move(game=game, ply=moves_played + 1, side=side, san=san))
                 board.push(move)
                 moves_played += 1
 

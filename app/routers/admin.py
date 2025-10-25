@@ -70,7 +70,7 @@ async def schedule_model(
     model = await session.get(Model, model_id)
     if model is None:
         raise HTTPException(status_code=404, detail="Model not found")
-    schedule = MatchSchedule(model_id=model.id)
+    schedule = MatchSchedule(model=model)
     session.add(schedule)
     await session.flush()
     await session.commit()

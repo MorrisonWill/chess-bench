@@ -2,11 +2,14 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
+from typing import TYPE_CHECKING
+
 from sqlmodel import Field, Relationship, SQLModel
 
-from .model import Model
-from .move import Move
-from .schedule import MatchSchedule
+if TYPE_CHECKING:
+    from .model import Model
+    from .move import Move
+    from .schedule import MatchSchedule
 
 
 class GameOpponent(str, Enum):

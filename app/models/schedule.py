@@ -25,8 +25,8 @@ class MatchSchedule(SQLModel, table=True):
     status: MatchStatus = Field(default=MatchStatus.PENDING, index=True)
     game_id: int | None = Field(default=None, foreign_key="game.id", index=True)
 
-    model: "Model" = Relationship(back_populates="schedules")
-    game: "Game | None" = Relationship(
+    model: Model = Relationship(back_populates="schedules")
+    game: Game | None = Relationship(
         back_populates="schedule",
         sa_relationship_kwargs={"uselist": False},
     )

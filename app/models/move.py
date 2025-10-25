@@ -26,4 +26,4 @@ class Move(SQLModel, table=True):
         default_factory=datetime.utcnow, nullable=False, index=True
     )
 
-    game: "Game" = Relationship(back_populates="moves")
+    game: Game = Relationship(back_populates="moves")
