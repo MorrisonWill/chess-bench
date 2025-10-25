@@ -22,11 +22,9 @@ async def dashboard(
     session: AsyncSession = Depends(session_dependency),
     templates: Jinja2Templates = Depends(templates_dependency),
 ) -> HTMLResponse:
-    context = await _build_dashboard_context(session)
-    context["request"] = request
+    context = {"request": request, **await _build_dashboard_context(session)}
     settings = getattr(request.app.state, "settings", None)
-    if settings:
-        context["refresh_seconds"] = getattr(settings, "dashboard_refresh_seconds", 10)
+    context["refresh_seconds"] = getattr(settings, "dashboard_refresh_seconds", 10) if settings else 10
     return templates.TemplateResponse("dashboard.html", context)
 
 
@@ -36,11 +34,10 @@ async def active_boards_partial(
     session: AsyncSession = Depends(session_dependency),
     templates: Jinja2Templates = Depends(templates_dependency),
 ) -> HTMLResponse:
-    context = {
-        "request": request,
-        "active_games": await _active_games(session),
-    }
-    return templates.TemplateResponse("partials/active_boards.html", context)
+    return templates.TemplateResponse(
+        "partials/active_boards.html",
+        {"request": request, "active_games": await _active_games(session)},
+    )
 
 
 @router.get("/partials/completed-games", response_class=HTMLResponse)
@@ -49,11 +46,10 @@ async def completed_games_partial(
     session: AsyncSession = Depends(session_dependency),
     templates: Jinja2Templates = Depends(templates_dependency),
 ) -> HTMLResponse:
-    context = {
-        "request": request,
-        "completed_games": await _completed_games(session),
-    }
-    return templates.TemplateResponse("partials/completed_games.html", context)
+    return templates.TemplateResponse(
+        "partials/completed_games.html",
+        {"request": request, "completed_games": await _completed_games(session)},
+    )
 
 
 @router.get("/partials/rating-table", response_class=HTMLResponse)
@@ -62,12 +58,14 @@ async def rating_table_partial(
     session: AsyncSession = Depends(session_dependency),
     templates: Jinja2Templates = Depends(templates_dependency),
 ) -> HTMLResponse:
-    context = {
-        "request": request,
-        "models": await _rating_table(session),
-        "generated_at": datetime.utcnow(),
-    }
-    return templates.TemplateResponse("partials/rating_table.html", context)
+    return templates.TemplateResponse(
+        "partials/rating_table.html",
+        {
+            "request": request,
+            "models": await _rating_table(session),
+            "generated_at": datetime.utcnow(),
+        },
+    )
 
 
 async def _build_dashboard_context(session: AsyncSession) -> dict[str, object]:

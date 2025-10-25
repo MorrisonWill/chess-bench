@@ -15,6 +15,7 @@ dependencies = [
     "sqlmodel>=0.0.24",
     "uvicorn>=0.35.0",
     "greenlet>=3.2.4",
+    "python-multipart>=0.0.9",
 ]
 
 [dependency-groups]

@@ -2,8 +2,11 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
-
 from sqlmodel import Field, Relationship, SQLModel
+
+from .model import Model
+from .move import Move
+from .schedule import MatchSchedule
 
 
 class GameOpponent(str, Enum):
@@ -27,6 +30,9 @@ class Game(SQLModel, table=True):
     opening: str | None = Field(default=None, index=True)
     moves_count: int = Field(default=0)
 
-    model: "Model" = Relationship(back_populates="games")
-    moves: list["Move"] = Relationship(back_populates="game")
-    schedule: "MatchSchedule" | None = Relationship(back_populates="game")
+    model: Model = Relationship(back_populates="games")
+    moves: list[Move] = Relationship(back_populates="game")
+    schedule: MatchSchedule | None = Relationship(
+        back_populates="game",
+        sa_relationship_kwargs={"uselist": False},
+    )

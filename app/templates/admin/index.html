@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block title %}Admin | Chessbench{% endblock %}
+
+{% block content %}
+  <section class="card">
+    <header class="card-header">
+      <h2>Register Model</h2>
+    </header>
+    <form method="post" action="/admin/models" class="form-grid">
+      <label>
+        Name
+        <input type="text" name="name" required />
+      </label>
+      <label>
+        OpenRouter Model
+        <input type="text" name="openrouter_model" placeholder="provider/model" required />
+      </label>
+      <label>
+        Starting Rating
+        <input type="number" step="any" name="rating" placeholder="1200" />
+      </label>
+      <label class="checkbox-row">
+        <input type="checkbox" name="is_active" checked />
+        Active
+      </label>
+      <div class="form-actions">
+        <button type="submit" class="btn">Add Model</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="card">
+    <header class="card-header">
+      <h2>Models</h2>
+    </header>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Name</th>
+          <th>OpenRouter Model</th>
+          <th>Rating</th>
+          <th>Status</th>
+          <th>Last Active</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for model in models %}
+          <tr>
+            <td>{{ model.id }}</td>
+            <td>{{ model.name }}</td>
+            <td>{{ model.openrouter_model }}</td>
+            <td>
+              {% if model.rating is not none %}
+                {{ "{:.0f}".format(model.rating) }}
+              {% else %}
+                —
+              {% endif %}
+            </td>
+            <td>
+              {% if model.is_active %}
+                <span class="badge active">Active</span>
+              {% else %}
+                <span class="badge inactive">Inactive</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if model.last_active_at %}
+                {{ model.last_active_at.strftime("%Y-%m-%d %H:%M:%S") }}
+              {% else %}
+                —
+              {% endif %}
+            </td>
+            <td>
+              <form method="post" action="/admin/models/{{ model.id }}/toggle" class="inline-form">
+                <button type="submit" class="btn btn-secondary">
+                  {% if model.is_active %}Disable{% else %}Enable{% endif %}
+                </button>
+              </form>
+              <form method="post" action="/admin/models/{{ model.id }}/schedule" class="inline-form">
+                <button type="submit" class="btn">Schedule Match</button>
+              </form>
+            </td>
+          </tr>
+        {% else %}
+          <tr>
+            <td colspan="7">No models registered yet.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section class="card">
+    <header class="card-header">
+      <h2>Pending Matches</h2>
+    </header>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Model</th>
+          <th>Status</th>
+          <th>Scheduled For</th>
+          <th>Game ID</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for schedule in schedules %}
+          <tr>
+            <td>{{ schedule.id }}</td>
+            <td>{{ schedule.model.name if schedule.model else "?" }}</td>
+            <td>{{ schedule.status.value }}</td>
+            <td>
+              {% if schedule.scheduled_for %}
+                {{ schedule.scheduled_for.strftime("%Y-%m-%d %H:%M:%S") }}
+              {% else %}
+                —
+              {% endif %}
+            </td>
+            <td>{{ schedule.game_id or "—" }}</td>
+          </tr>
+        {% else %}
+          <tr>
+            <td colspan="5">No pending matches.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+{% endblock %}

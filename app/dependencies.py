@@ -19,14 +19,15 @@ async def session_dependency(
 
 
 def orchestrator_dependency(request: Request) -> GameOrchestrator:
-    orchestrator = getattr(request.app.state, "orchestrator", None)
-    if orchestrator is None:
-        raise RuntimeError("Orchestrator not initialized")
-    return orchestrator
+    return _state_attr(request, "orchestrator")
 
 
 def templates_dependency(request: Request) -> Jinja2Templates:
-    templates = getattr(request.app.state, "templates", None)
-    if templates is None:
-        raise RuntimeError("Templates not configured")
-    return templates
+    return _state_attr(request, "templates")
+
+
+def _state_attr(request: Request, attr: str):
+    value = getattr(request.app.state, attr, None)
+    if value is None:
+        raise RuntimeError(f"{attr!r} not initialized on application state")
+    return value

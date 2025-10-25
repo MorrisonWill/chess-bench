@@ -2,8 +2,13 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
+from typing import TYPE_CHECKING
 
 from sqlmodel import Field, Relationship, SQLModel
+
+if TYPE_CHECKING:
+    from .game import Game
+    from .model import Model
 
 
 class MatchStatus(str, Enum):
@@ -21,4 +26,7 @@ class MatchSchedule(SQLModel, table=True):
     game_id: int | None = Field(default=None, foreign_key="game.id", index=True)
 
     model: "Model" = Relationship(back_populates="schedules")
-    game: "Game" | None = Relationship(back_populates="schedule")
+    game: "Game | None" = Relationship(
+        back_populates="schedule",
+        sa_relationship_kwargs={"uselist": False},
+    )

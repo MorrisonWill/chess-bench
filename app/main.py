@@ -12,15 +12,16 @@ from app.database import create_db_and_tables, get_session_factory
 from app.internal.openrouter import OpenRouterClient
 from app.internal.orchestrator import GameOrchestrator
 from app.internal.stockfish import StockfishEngine
-from app.routers import dashboard, games, models
+from app.routers import admin, dashboard, games, models
 
 
 BASE_DIR = Path(__file__).resolve().parent
+settings = get_settings()
+templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    settings = get_settings()
     await create_db_and_tables(settings)
     session_factory = get_session_factory(settings)
     stockfish = None if settings.test_mode else StockfishEngine(settings.stockfish_path)
@@ -33,7 +34,6 @@ async def lifespan(app: FastAPI):
         pgn_directory=BASE_DIR.parent / "pgn",
         dry_run=settings.test_mode,
     )
-    templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
     app.state.settings = settings
     app.state.templates = templates
     app.state.orchestrator = orchestrator
@@ -44,7 +44,8 @@ async def lifespan(app: FastAPI):
         await orchestrator.stop()
 
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(title="Chessbench", debug=settings.debug, lifespan=lifespan)
+app.include_router(admin.router)
 app.include_router(dashboard.router)
 app.include_router(games.router, prefix="/api")
 app.include_router(models.router, prefix="/api")
@@ -56,3 +57,9 @@ app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 @app.get("/healthz")
 async def health_check() -> dict[str, str]:
     return {"status": "ok"}
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)

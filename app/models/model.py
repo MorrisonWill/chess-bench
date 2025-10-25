@@ -1,8 +1,13 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlmodel import Field, Relationship, SQLModel
+
+if TYPE_CHECKING:
+    from .game import Game
+    from .schedule import MatchSchedule
 
 
 class Model(SQLModel, table=True):
